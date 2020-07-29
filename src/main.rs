@@ -156,6 +156,11 @@ fn main() -> anyhow::Result<()> {
         &["domain"],
     )
     .unwrap();
+    let stun_timestamp_vec = IntGaugeVec::new(
+        Opts::new("stun_probe_timestamp", "Stun last probe timestamp"),
+        &["domain"],
+    )
+    .unwrap();
     r.register(Box::new(stun_counter_vec.clone()))
         .expect("Failed to register stun connection counter");
     let stun_latency_vec = IntGaugeVec::new(gauge_opts, &["domain"]).unwrap();
@@ -163,6 +168,7 @@ fn main() -> anyhow::Result<()> {
         .expect("Failed to register stun latency guage");
     r.register(Box::new(stun_success_vec.clone()))
         .expect("Failed to register stun success gauge");
+    r.register(Box::new(stun_timestamp_vec.clone()))?;
     let socket_addrs = resolve_addrs(&stun_servers).unwrap();
     let stun_servers = Arc::new(stun_servers);
 
@@ -200,12 +206,19 @@ fn main() -> anyhow::Result<()> {
         let stun_counter_vec_copy = stun_counter_vec.clone();
         let stun_latency_vec_copy = stun_latency_vec.clone();
         let stun_success_vec_copy = stun_success_vec.clone();
+        let stun_timestamp_vec_copy = stun_timestamp_vec.clone();
         let s = s.clone();
         let domain_name = *stun_servers_copy.get(i).unwrap();
         let connect_thread = thread::Pending::new(move || {
             debug!("started thread for {}", domain_name);
             loop {
                 let now = SystemTime::now();
+                match now.duration_since(SystemTime::UNIX_EPOCH) {
+                    Ok(t) => stun_timestamp_vec_copy
+                        .with(&prometheus::labels! {"domain" => domain_name})
+                        .set(t.as_secs() as i64),
+                    Err(_) => {}
+                };
                 info!("Attempting to connect to {}", domain_name);
                 match attempt_stun_connect(s) {
                     Ok(finish_time) => {
