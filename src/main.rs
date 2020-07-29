@@ -150,26 +150,21 @@ fn main() -> anyhow::Result<()> {
     );
     // Create a Registry and register metrics.
     let r = Registry::new();
-    let stun_counter_vec = CounterVec::new(counter_opts, &["result", "domain"]).unwrap();
+    let stun_counter_vec = CounterVec::new(counter_opts, &["result", "domain"])?;
     let stun_success_vec = IntGaugeVec::new(
         Opts::new("stun_success", "Stun probe successes"),
         &["domain"],
-    )
-    .unwrap();
+    )?;
     let stun_timestamp_vec = IntGaugeVec::new(
         Opts::new("stun_probe_timestamp", "Stun last probe timestamp"),
         &["domain"],
-    )
-    .unwrap();
-    r.register(Box::new(stun_counter_vec.clone()))
-        .expect("Failed to register stun connection counter");
-    let stun_latency_vec = IntGaugeVec::new(gauge_opts, &["domain"]).unwrap();
-    r.register(Box::new(stun_latency_vec.clone()))
-        .expect("Failed to register stun latency guage");
-    r.register(Box::new(stun_success_vec.clone()))
-        .expect("Failed to register stun success gauge");
+    )?;
+    r.register(Box::new(stun_counter_vec.clone()))?;
+    let stun_latency_vec = IntGaugeVec::new(gauge_opts, &["domain"])?;
+    r.register(Box::new(stun_latency_vec.clone()))?;
+    r.register(Box::new(stun_success_vec.clone()))?;
     r.register(Box::new(stun_timestamp_vec.clone()))?;
-    let socket_addrs = resolve_addrs(&stun_servers).unwrap();
+    let socket_addrs = resolve_addrs(&stun_servers)?;
     let stun_servers = Arc::new(stun_servers);
 
     let mut parent = Nursery::new();
